@@ -9,5 +9,5 @@ Sentiment Classification: Classify Good/Bad from movie reviews
 
 # ACC
 ### CNN 82.5%
-### BART 62.5%
+### BART 70%
 ### BERT 82%
