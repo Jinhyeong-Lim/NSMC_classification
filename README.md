@@ -20,3 +20,4 @@ Sentiment Classification: Classify Good/Bad from movie reviews
 ###  - KoELECTRA 84.1% (Using data 10%, epochs=1)
 > #### 공부중입니다.
 ###  - KoBERT 80% (Using data 10%, epochs=1)
+https://github.com/SKTBrain/KoBERT
