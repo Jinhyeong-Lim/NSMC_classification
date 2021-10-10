@@ -1,4 +1,3 @@
-
 import numpy as np
 import pandas as pd
 import torch
@@ -7,23 +6,18 @@ from transformers import BertTokenizer, BertForSequenceClassification
 from torch.optim import Adam
 import torch.nn.functional as F
 
-# naver sentiment corpus
-
 
 train_df = pd.read_csv('ratings_train.txt', sep='\t')
 test_df = pd.read_csv('ratings_test.txt', sep='\t')
-train_df.head(3)
-
 train_df.dropna(inplace=True)
 test_df.dropna(inplace=True)
 
-train_df = train_df.sample(frac=0.35, random_state=999)
-test_df = test_df.sample(frac=0.35, random_state=999)
+train_df = train_df.sample(frac=0.4, random_state=999)
+test_df = test_df.sample(frac=0.4, random_state=999)
 
 
 class NsmcDataset(Dataset):
     ''' Naver Sentiment Movie Corpus Dataset '''
-
     def __init__(self, df):
         self.df = df
 
@@ -47,7 +41,7 @@ optimizer = Adam(model.parameters(), lr=1e-6)
 
 itr = 1
 p_itr = 500
-epochs = 1
+epochs = 2
 total_loss = 0
 total_len = 0
 total_correct = 0
@@ -58,14 +52,17 @@ for epoch in range(epochs):
     for text, label in train_loader:
         optimizer.zero_grad()
 
+        # encoding and zero padding
         encoded_list = [tokenizer.encode(t, add_special_tokens=True) for t in text]
         padded_list = [e + [0] * (512 - len(e)) for e in encoded_list]
+
         sample = torch.tensor(padded_list)
         sample, label = sample.to(device), label.to(device)
         labels = torch.tensor(label)
         outputs = model(sample, labels=labels)
         loss = outputs.loss
         logits = outputs.logits
+
         pred = torch.argmax(F.softmax(logits), dim=1)
         correct = pred.eq(labels)
         total_correct += correct.sum().item()
@@ -84,29 +81,29 @@ for epoch in range(epochs):
 
         itr += 1
 
-# evaluation
-model.eval()
 
-nsmc_eval_dataset = NsmcDataset(test_df)
-eval_loader = DataLoader(nsmc_eval_dataset, batch_size=2, shuffle=False, num_workers=2)
+model.eval() #test mode로 변경, dropout같은 함수가 적용 될지 안될지 결정
+# iterate over test data
 
-total_loss = 0
-total_len = 0
-total_correct = 0
+with torch.no_grad():
+    nsmc_eval_dataset = NsmcDataset(test_df)
+    test_loader = DataLoader(nsmc_eval_dataset, batch_size=1, shuffle=False, num_workers=2)
+    total_loss = 0
+    total_len = 0
+    total_correct = 0
 
-for text, label in eval_loader:
-    encoded_list = [tokenizer.encode(t, add_special_tokens=True) for t in text]
-    padded_list = [e + [0] * (512 - len(e)) for e in encoded_list]
-    sample = torch.tensor(padded_list)
-    labels = torch.tensor(label)
-    sample, label = sample.to(device), label.to(device)
-    outputs = model(sample, labels=labels)
-    loss = outputs.loss
-    logits = outputs.logits
+    for text, label in test_loader:
+        encoded_list = [tokenizer.encode(t, add_special_tokens=True) for t in text]
+        padded_list = [e + [0] * (512-len(e)) for e in encoded_list]
+        sample = torch.tensor(padded_list)
+        sample, label = sample.to(device), label.to(device)
+        labels = torch.tensor(label)
+        outputs = model(sample, labels=labels)
+        _, logits = outputs
 
-    pred = torch.argmax(F.softmax(logits), dim=1)
-    correct = pred.eq(labels)
-    total_correct += correct.sum().item()
-    total_len += len(labels)
+        pred = torch.argmax(F.softmax(logits), dim=1)
+        correct = pred.eq(labels)
+        total_correct += correct.sum().item()
+        total_len += len(labels)
 
 print('Test accuracy: ', total_correct / total_len)
